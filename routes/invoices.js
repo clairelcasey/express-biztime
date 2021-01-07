@@ -13,10 +13,10 @@ Return info on invoices: like {invoices: [{id, comp_code}, ...]}
 */
 
 router.get("/", async function (req, res, next) {
-  const results = await db.query(
+  const result = await db.query(
     `SELECT id, comp_code
            FROM invoices`);
-  const invoices = results.rows;
+  const invoices = result.rows;
 
   return res.json({ invoices });
 });
@@ -30,30 +30,30 @@ Returns {invoice:
 
 router.get("/:id", async function (req, res, next) {
   const { id } = req.params;
-  const iResults = await db.query(
+  const iResult = await db.query(
     `SELECT id, amt, paid, add_date, paid_date
              FROM invoices
              WHERE id = $1`,
     [id]);
-  const invoice = results.rows[0];
+  const invoice = iResult.rows[0];
 
   if (!invoice) throw new NotFoundError(`Not found: ${code}`);
 
-  const codeResults = await db.query(
+  const codeResult = await db.query(
     `SELECT comp_code
              FROM invoices
              WHERE id = $1`,
     [id]);
 
-  const compCode = codeResults.rows[0].comp_code
+  const compCode = codeResult.rows[0].comp_code
 
-  const cResults = await db.query(
+  const cResult = await db.query(
     `SELECT code, name, description
              FROM companies
              WHERE code = $1`,
     [compCode]);
 
-  invoice.company = cResults.rows[0];
+  invoice.company = cResult.rows[0];
 
   return res.json({ invoice })
 });
@@ -71,9 +71,9 @@ router.post('/', async function (req, res, next) {
   if (!Number(amt)) throw new BadRequestError(`Invalid amount: ${amt}`);
 
   // QUESTION: Is it better to include this try/catch, or to add a middleware with a query? 
-  let result;
+  let iResult;
   try {
-    result = await db.query(
+    iResult = await db.query(
       `INSERT INTO invoices (comp_code, amt)
              VALUES ($1, $2)
              RETURNING id, comp_code, amt, paid, add_date, paid_date`,
@@ -84,9 +84,62 @@ router.post('/', async function (req, res, next) {
       `Company code (${comp_code}) does not exist`)
   }
 
-  const invoice = result.rows[0];
+  const invoice = iResult.rows[0];
   return res.status(201).json({ invoice });
 });
+
+/** PUT /invoices/[id]
+Updates an invoice.
+
+If invoice cannot be found, returns a 404.
+
+Needs to be passed in a JSON body of {amt}
+
+Returns: {invoice: {id, comp_code, amt, paid, add_date, paid_date}} 
+*/
+
+router.put('/:id',
+  async function (req, res, next) {
+    const { amt } = req.body;
+    const { id } = req.params;
+
+    if (!Number(amt)) throw new BadRequestError(`Invalid amount: ${amt}`);
+
+    const iResult = await db.query(
+      `UPDATE invoices
+           SET amt = $1
+           WHERE id = $2
+           RETURNING id, comp_code, amt, paid, add_date, paid_date`,
+      [amt, id],
+    );
+    const invoice = iResult.rows[0];
+    if (!invoice) throw new NotFoundError(`Not found: ${id}`)
+
+    return res.json({ invoice });
+});
+
+/** DELETE /invoices/[id]
+Deletes an invoice.
+
+If invoice cannot be found, returns a 404.
+
+Returns: {status: "deleted"}
+*/
+
+router.delete('/:id', async function (req, res, next) {
+  const { id } = req.params;
+
+  const iResult = await db.query(
+    `DELETE FROM invoices WHERE id = $1
+      RETURNING id`,
+    [id],
+  );
+
+  const invoice = iResult.rows[0];
+  if (!invoice) throw new NotFoundError(`Not found: ${id}`);
+
+  return res.json({ status: "deleted" });
+})
 
 
 module.exports = router;
