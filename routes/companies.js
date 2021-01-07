@@ -11,10 +11,10 @@ Returns list of companies, like {companies: [{code, name}, ...]}
 */
 
 router.get("/", async function (req, res, next) {
-  const results = await db.query(
+  const result = await db.query(
     `SELECT code, name
            FROM companies`);
-  const companies = results.rows;
+  const companies = result.rows;
 
   return res.json({ companies });
 });

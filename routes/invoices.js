@@ -81,7 +81,7 @@ router.post('/', async function (req, res, next) {
     );
   } catch (err) {
     throw new BadRequestError(
-      `Company code (${comp_code}) does not exist`)
+      `Company code does not exist: ${comp_code}`)
   }
 
   const invoice = iResult.rows[0];
