@@ -30,6 +30,7 @@ Returns {invoice:
 
 router.get("/:id", async function (req, res, next) {
   const { id } = req.params;
+  // TODO: consider refactoring to remove the second query and combine with first. 
   const iResult = await db.query(
     `SELECT id, amt, paid, add_date, paid_date
              FROM invoices
@@ -70,7 +71,7 @@ router.post('/', async function (req, res, next) {
   // NOTE: currently, we are not allowing invoices of 0.
   if (!Number(amt)) throw new BadRequestError(`Invalid amount: ${amt}`);
 
-  // QUESTION: Is it better to include this try/catch, or to add a middleware with a query? 
+  // QUESTION: Is it better to include this try/catch, or to add a middleware with a query? Discussed transaction "racing" and both options, choosing to leave as try/catch. 
   let iResult;
   try {
     iResult = await db.query(
@@ -81,10 +82,12 @@ router.post('/', async function (req, res, next) {
     );
   } catch (err) {
     throw new BadRequestError(
+      // NOTE: potentially refactor to be more specific. could search if phrase inside of string. 
       `Company code does not exist: ${comp_code}`)
   }
 
   const invoice = iResult.rows[0];
+  // TODO: add a global constant for our status codes. 
   return res.status(201).json({ invoice });
 });
 

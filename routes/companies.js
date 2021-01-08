@@ -67,9 +67,8 @@ router.post('/', async function (req, res, next) {
     );
   } catch (err) {
     throw new BadRequestError(
-      `Name (${name}) or code (${code}) already exits`)
+      `Name (${name}) or code (${code}) already exists`)
   }
-  console.log('result', result);
   const company = result.rows[0];
   return res.status(201).json({ company });
 })
@@ -85,24 +84,30 @@ Returns update company object: {company: {code, name, description}}
 */
 
 router.put('/:code',
-  middleware.nameVerify,
   async function (req, res, next) {
     const { name, description } = req.body;
     const { code } = req.params;
 
-    const result = await db.query(
-      `UPDATE companies
-           SET name=$1,
-               description=$2
-           WHERE code = $3
-           RETURNING code, name, description`,
-      [name, description, code],
-    );
+    let result;
+    try {
+      result = await db.query(
+        `UPDATE companies
+             SET name=$1,
+                 description=$2
+             WHERE code = $3
+             RETURNING code, name, description`,
+        [name, description, code],
+      );
+    } catch (err) {
+      throw new BadRequestError(
+        `Name already taken: ${name}`);
+    }
+
     const company = result.rows[0];
     if (!company) throw new NotFoundError(`Not found: ${code}`)
 
     return res.json({ company });
-});
+  });
 
 /** DELETE /companies/[code]
 Deletes company.
